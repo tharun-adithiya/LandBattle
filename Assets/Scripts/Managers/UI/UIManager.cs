@@ -1,10 +1,13 @@
-using NUnit.Framework.Internal.Execution;
 using UnityEngine;
 
 public class UIManager : MonoBehaviour
 {
-    public static UIManager Instance { get; private set; }
-    [SerializeField]private GameObject currentWindow;
+    public static UIManager Instance { get; private set; }      //Singleton Instance
+
+    [SerializeField] private GameObject currentWindow;
+    private GameObject gameUIWindow;
+
+    [Header("Game Windows")]
     [SerializeField] private GameObject mainMenu;
     [SerializeField] private GameObject difficultyUI;
     [SerializeField] private GameObject playerShipPlacementUI;
@@ -15,69 +18,101 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject gameOverUI;
     [SerializeField] private GameObject winUI;
 
+    public WindowStates CurrentWindowState { get; private set; } = (WindowStates)(-1);   //Setting the enum variable to -1 to prevent mismatching.
+
     private void Awake()
     {
-        if (Instance!=null&&Instance != this)
+        #region Singleton                               
+        if (Instance != null && Instance != this)           //Singleton for UIManager
         {
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
-
+        #endregion                          
     }
 
     private void Start()
     {
-        SetWindowState(WindowStates.Main);                                   //Always start with Start/MainMenu
+        SetWindowState(WindowStates.Main);                 //Setting up main menu as the staring window
     }
 
-    public void SetWindowState(WindowStates nextWindow)
+    public void SetWindowState(WindowStates nextWindow)     //Simple FSM to switch between different window states 
     {
-        if (currentWindow != null) currentWindow.SetActive(false);          //Disables the current active window
+        if (CurrentWindowState == nextWindow)
+        {
+            Debug.Log("Exiting");
+            return;
+        }
+            
 
-        switch (nextWindow)                                                  //Switch based on the selected window state.
+        ExitWindow(CurrentWindowState);
+
+        CurrentWindowState = nextWindow;
+
+        EnterWindow(nextWindow);
+    }
+
+    void EnterWindow(WindowStates nextWindow)
+    {
+        if (currentWindow != null)
+            Destroy(currentWindow);
+
+        switch (nextWindow)
         {
             case WindowStates.Main:
-                currentWindow=mainMenu;
+                currentWindow = Instantiate(mainMenu,transform);
                 currentWindow.SetActive(true);
                 break;
+
             case WindowStates.DifficultySelection:
-                currentWindow=Instantiate(difficultyUI);
+                currentWindow = Instantiate(difficultyUI, transform);
                 currentWindow.SetActive(true);
                 currentWindow.transform.SetParent(transform);
-                RectTransform rect = currentWindow.GetComponent<RectTransform>();
-                if (rect != null) rect.anchoredPosition = Vector2.zero;
                 break;
+
             case WindowStates.PlayerShipPlacementUI:
-                currentWindow=playerShipPlacementUI;
+                currentWindow = playerShipPlacementUI;
                 currentWindow.SetActive(true);
                 break;
+
             case WindowStates.BotShipPlacementUI:
-                currentWindow=botShipPlacementUI;
+                currentWindow = Instantiate(botShipPlacementUI, transform);
                 currentWindow.SetActive(true);
                 break;
+
             case WindowStates.GameUI:
-                currentWindow=gameUI;
-                currentWindow.SetActive(true);
+                if (gameUIWindow != null) return;
+                gameUIWindow = Instantiate(gameUI, transform);
+                gameUIWindow.SetActive(true);
                 break;
+
             case WindowStates.PlayerShootUI:
-                currentWindow=playerShootUI;
+                currentWindow = playerShootUI;
                 currentWindow.SetActive(true);
                 break;
+
             case WindowStates.BotShootUI:
-                currentWindow=botShootUI;
+                currentWindow = botShootUI;
                 currentWindow.SetActive(true);
                 break;
+
             case WindowStates.Win:
-                currentWindow=winUI;
+                currentWindow = winUI;
                 currentWindow.SetActive(true);
                 break;
+
             case WindowStates.GameOver:
                 currentWindow = gameOverUI;
                 currentWindow.SetActive(true);
                 break;
-
         }
+    }
+
+    void ExitWindow(WindowStates previousWindow)
+    {
+        Debug.Log("Exiting Window: " + previousWindow);
     }
 }
