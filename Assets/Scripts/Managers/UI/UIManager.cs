@@ -70,11 +70,10 @@ public class UIManager : MonoBehaviour
             case WindowStates.DifficultySelection:
                 currentWindow = Instantiate(difficultyUI, transform);
                 currentWindow.SetActive(true);
-                currentWindow.transform.SetParent(transform);
                 break;
 
             case WindowStates.PlayerShipPlacementUI:
-                currentWindow = playerShipPlacementUI;
+                currentWindow = Instantiate(playerShipPlacementUI, transform);
                 currentWindow.SetActive(true);
                 break;
 
@@ -99,18 +98,26 @@ public class UIManager : MonoBehaviour
                 currentWindow.SetActive(true);
                 break;
 
-            case WindowStates.Win:
-                currentWindow = winUI;
+            case WindowStates.WinUI:
+                currentWindow = Instantiate(winUI, transform);
                 currentWindow.SetActive(true);
                 break;
 
-            case WindowStates.GameOver:
-                currentWindow = gameOverUI;
+            case WindowStates.GameOverUI:
+                currentWindow = Instantiate(gameOverUI, transform);
                 currentWindow.SetActive(true);
                 break;
         }
     }
 
+    public void PlayClickButton()
+    {
+        AudioManager.Instance.PlayOnClickButton();
+    }
+    public void PlaySaved()
+    {
+        AudioManager.Instance.PlayOnSave();
+    }
     void ExitWindow(WindowStates previousWindow)
     {
         Debug.Log("Exiting Window: " + previousWindow);

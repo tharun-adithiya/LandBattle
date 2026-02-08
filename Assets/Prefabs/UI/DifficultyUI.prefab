@@ -240,6 +240,7 @@ GameObject:
   - component: {fileID: 9101294804858047275}
   - component: {fileID: 146251278015224168}
   - component: {fileID: 4472700314658052231}
+  - component: {fileID: 871419576112317062}
   m_Layer: 5
   m_Name: Easy
   m_TagString: Untagged
@@ -361,6 +362,30 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: AudioManager, Assembly-CSharp
+        m_MethodName: PlayOnClickButton
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+--- !u!114 &871419576112317062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3276473955992658985}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5262f451bbae084d83c140365e95b51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &3663681757245963215
 GameObject:
   m_ObjectHideFlags: 0
@@ -373,6 +398,7 @@ GameObject:
   - component: {fileID: 4761023238850535911}
   - component: {fileID: 3179856602944559157}
   - component: {fileID: 4728628425372252274}
+  - component: {fileID: 7443330201847808060}
   m_Layer: 5
   m_Name: Hard
   m_TagString: Untagged
@@ -494,6 +520,30 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: AudioManager, Assembly-CSharp
+        m_MethodName: PlayOnClickButton
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+--- !u!114 &7443330201847808060
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3663681757245963215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5262f451bbae084d83c140365e95b51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &4826068103798449436
 GameObject:
   m_ObjectHideFlags: 0
@@ -916,6 +966,7 @@ GameObject:
   - component: {fileID: 4503855908069709095}
   - component: {fileID: 4146373063784365755}
   - component: {fileID: 9001824116795205312}
+  - component: {fileID: 1439583566283613312}
   m_Layer: 5
   m_Name: Medium
   m_TagString: Untagged
@@ -1037,3 +1088,27 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: AudioManager, Assembly-CSharp
+        m_MethodName: PlayOnClickButton
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+--- !u!114 &1439583566283613312
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7060094808266194862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5262f451bbae084d83c140365e95b51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

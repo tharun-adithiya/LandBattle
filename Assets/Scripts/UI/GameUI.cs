@@ -30,6 +30,10 @@ public class GameUI : MonoBehaviour                             // Behaviour for
         saveButton.GetComponent<Button>().onClick.RemoveAllListeners();
         saveButton.GetComponent<Button>().onClick.AddListener(playerboardManager.LockShips);
         saveButton.GetComponent<Button>().onClick.AddListener(botManager.PlaceBotShips);
+        
+        // NEW - Re-add audio listeners after clearing
+        saveButton.GetComponent<Button>().onClick.AddListener(AudioManager.Instance.PlayOnClickButton);
+        saveButton.GetComponent<Button>().onClick.AddListener(AudioManager.Instance.PlayOnSave);
     }
     public void ShowSaveButton()=> saveButton.SetActive(true);
     public void HideSaveButton()=>saveButton.SetActive(false);

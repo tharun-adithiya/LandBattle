@@ -6,6 +6,7 @@ using UnityEngine;
 public class BotShipPlacementData : ScriptableObject
 {
     public Ship[] ships;
+
     [Serializable]
     public class Ship
     {
@@ -13,5 +14,20 @@ public class BotShipPlacementData : ScriptableObject
         public float rotatedAngle;
         public int size;
         public bool isHorizontal;
+    }
+
+    // safety validation in editor
+    private void OnValidate()
+    {
+        if (ships == null)
+            return;
+
+        foreach (var ship in ships)
+        {
+            if (ship.size <= 0)
+            {
+                Debug.LogWarning($"{name}: Ship size invalid.");
+            }
+        }
     }
 }

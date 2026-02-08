@@ -12,21 +12,35 @@ public class BotShipController : MonoBehaviour
 
     private List<Vector3Int> currentShipOccupiedCells = new();
 
-    private void OnEnable()
+    // NEW
+    private bool isPlaced;
+
+    // Called by BotManager to inject the board manager reference
+    public void SetBoardManager(BotBoardManager manager)
     {
-        botBoardManager = GameObject.FindFirstObjectByType<BotBoardManager>();
+        botBoardManager = manager;
     }
 
     // Called by BotManager
     public void PlaceAtCell(Vector3Int startCell)
     {
-        if (botBoardManager.CanPlaceShip(startCell, shipSize, isHorizontal, out List<Vector3Int> cells))
+        if (isPlaced) return;                     // NEW
+
+        if (botBoardManager == null)
+        {
+            Debug.LogError($"{name}: BotBoardManager is null! Make sure it's assigned in the Inspector.");
+            return;
+        }
+
+        if (botBoardManager.TryPlacngShip(startCell, shipSize, isHorizontal, out List<Vector3Int> cells))
         {
             PlaceShip(cells);
+            isPlaced = true;                     // NEW
+            Debug.Log($"{name} successfully placed with {cells.Count} cells registered");
         }
         else
         {
-            Debug.LogError($"{name} cannot be placed at {startCell}");
+            Debug.LogError($"{name} could not be placed near {startCell}. Size: {shipSize}, Horizontal: {isHorizontal}");
         }
     }
 
@@ -35,7 +49,7 @@ public class BotShipController : MonoBehaviour
     {
         currentShipOccupiedCells.Clear();
         currentShipOccupiedCells.AddRange(cells);
-        botBoardManager.OccupyCells(cells);
+        botBoardManager.OccupyCells(cells,this);
 
         Vector3 offsetVector = isHorizontal ?
             new Vector3((shipSize - 1) * 0.5f, 0, 0) :
@@ -49,6 +63,8 @@ public class BotShipController : MonoBehaviour
 
     void FreeOccupiedCells()                                    //Cleans up the board
     {
+        if (botBoardManager == null) return;        // NEW
+
         botBoardManager.FreeCells(currentShipOccupiedCells);
         currentShipOccupiedCells.Clear();
     }
@@ -85,6 +101,7 @@ public class BotShipController : MonoBehaviour
 
     private void OnDestroy()
     {
-        botBoardManager.FreeCells(currentShipOccupiedCells);
+        if (botBoardManager != null)               // NEW
+            botBoardManager.FreeCells(currentShipOccupiedCells);
     }
 }

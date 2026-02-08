@@ -6,6 +6,9 @@ using DG.Tweening;
 public class ShipController : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
+    [Header("VFX")]
+    [SerializeField] public ParticleSystem smokeVFX;
+
     [Header("Drag Settings")]
     [SerializeField] private float dragSmoothing;                                //Modifiers for drag and feedback
     [SerializeField] private float snapSpeed;
@@ -70,7 +73,7 @@ public class ShipController : MonoBehaviour,
     {
         currentShipOccupiedCells.Clear();
         currentShipOccupiedCells.AddRange(cells);
-        boardManager.OccupyCells(cells);
+        boardManager.OccupyCells(cells,this);
 
         Vector3 offsetVector = isHorizontal ?
             new Vector3((shipSize - 1) * 0.5f, 0, 0) :

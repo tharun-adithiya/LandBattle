@@ -6,4 +6,9 @@ public class MainMenu : MonoBehaviour
     {
         UIManager.Instance.SetWindowState(WindowStates.DifficultySelection);
     }
+
+    public void QuitGame()
+    {
+        Application.Quit();
+    }
 }

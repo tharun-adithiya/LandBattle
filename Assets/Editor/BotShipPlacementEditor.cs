@@ -1,104 +1,146 @@
-using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
 [CustomEditor(typeof(BotShipPlacementData))]
-public class BotShipPlacementEditor : Editor                    //This custom editor helps to load data from scene placed-ships into BotShipPlacementSO
+public class BotShipPlacementEditor : Editor
 {
-    public List<Transform> ships = new();
-
     private Tilemap tilemap;
+    private Transform[] sceneShips = new Transform[5];
+
+    // NEW
+    private BotBoardManager botBoardManager;
 
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
+        BotShipPlacementData data = (BotShipPlacementData)target;
+
+        EditorGUILayout.Space(10);
+        EditorGUILayout.LabelField("Bot Placement Tool", EditorStyles.boldLabel);
+
+        tilemap = (Tilemap)EditorGUILayout.ObjectField(
+            "Bot Tilemap",
+            tilemap,
+            typeof(Tilemap),
+            true);
+
+        // NEW
+        botBoardManager = (BotBoardManager)EditorGUILayout.ObjectField(
+            "Bot Board Manager",
+            botBoardManager,
+            typeof(BotBoardManager),
+            true);
+
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Bot Tilemap", EditorStyles.boldLabel);
 
-        tilemap = (Tilemap)EditorGUILayout.ObjectField("Tilemap", tilemap, typeof(Tilemap), true);
+        DrawShipDropArea();
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Scene Bot Ships", EditorStyles.boldLabel);
 
-        int removeIndex = -1;
+        GUI.enabled = tilemap != null && botBoardManager != null;
 
-        for (int i = 0; i < ships.Count; i++)
+        if (GUILayout.Button("Capture Ship Placements"))
         {
-            EditorGUILayout.BeginHorizontal();
-
-            ships[i] = (Transform)EditorGUILayout.ObjectField($"Ship {i}", ships[i], typeof(Transform), true);
-
-            if (GUILayout.Button("X", GUILayout.Width(20)))
-                removeIndex = i;
-
-            EditorGUILayout.EndHorizontal();
-        }
-
-        if (removeIndex >= 0)
-            ships.RemoveAt(removeIndex);
-
-        if (GUILayout.Button("Add Ship Slot"))
-            ships.Add(null);
-
-        EditorGUILayout.Space();
-
-        GUI.enabled = tilemap != null;
-
-        if (GUILayout.Button("Capture Cell Placements"))
-        {
-            CaptureShips();
+            CaptureShips(data);
         }
 
         GUI.enabled = true;
     }
 
-    private void CaptureShips()
+    // ================= DROP AREA =================
+
+    void DrawShipDropArea()
     {
-        if (tilemap == null)
+        Rect dropArea = GUILayoutUtility.GetRect(0, 70, GUILayout.ExpandWidth(true));
+        GUI.Box(dropArea, "Drag 5 Ships Here");
+
+        Event evt = Event.current;
+
+        if (!dropArea.Contains(evt.mousePosition))
+            return;
+
+        if (evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform)
         {
-            Debug.LogError("Tilemap missing!");
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+
+            if (evt.type == EventType.DragPerform)
+            {
+                DragAndDrop.AcceptDrag();
+
+                var dropped = DragAndDrop.objectReferences
+                    .OfType<GameObject>()
+                    .Select(g => g.transform)
+                    .ToArray();
+
+                if (dropped.Length != 5)
+                {
+                    Debug.LogWarning("Drop EXACTLY 5 ships.");
+                    return;
+                }
+
+                sceneShips = dropped;
+
+                Debug.Log("Ships assigned.");
+            }
+
+            evt.Use();
+        }
+    }
+
+    // ================= CAPTURE =================
+
+    void CaptureShips(BotShipPlacementData data)
+    {
+        if (tilemap == null || botBoardManager == null)
+        {
+            Debug.LogError("Tilemap or BotBoardManager missing.");
             return;
         }
 
-        BotShipPlacementData data = (BotShipPlacementData)target;
-
-        List<BotShipPlacementData.Ship> captured = new();
-
-        foreach (var t in ships)
+        if (sceneShips.Any(s => s == null))
         {
-            if (t == null)
-                continue;
+            Debug.LogError("Missing ship references.");
+            return;
+        }
+
+        data.ships = new BotShipPlacementData.Ship[sceneShips.Length];
+
+        for (int i = 0; i < sceneShips.Length; i++)
+        {
+            Transform t = sceneShips[i];
 
             BotShipController controller = t.GetComponent<BotShipController>();
 
-            if (controller == null)
+            if (!controller)
             {
-                Debug.LogWarning($"No ShipController on {t.name}");
-                continue;
+                Debug.LogError($"BotShipController missing on {t.name}");
+                return;
             }
 
-            BotShipPlacementData.Ship ship = new BotShipPlacementData.Ship();
+            float angle = t.eulerAngles.z;
+            bool horizontal = Mathf.Abs(angle % 180f) < 1f;
 
-            Vector3Int cell = tilemap.WorldToCell(t.position);
+            // FIX — bake true start cell instead of transform center
+            Vector3Int cell = botBoardManager.GetStartCell(
+                t.position,
+                controller.shipSize,
+                horizontal);
 
-            ship.cellPosition = cell;
-            ship.size = controller.shipSize;
-
-            ship.rotatedAngle = t.eulerAngles.z;
-
-            captured.Add(ship);
+            data.ships[i] = new BotShipPlacementData.Ship
+            {
+                cellPosition = cell,
+                rotatedAngle = angle,
+                size = controller.shipSize,
+                isHorizontal = horizontal
+            };
         }
-
-        data.ships = captured.ToArray();
 
         EditorUtility.SetDirty(data);
         AssetDatabase.SaveAssets();
 
-        Debug.Log($"Captured {captured.Count} ships (CELL positions).");
+        Debug.Log($"Captured {sceneShips.Length} ships.");
     }
-
 }
-

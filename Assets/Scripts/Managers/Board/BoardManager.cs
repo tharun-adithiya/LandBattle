@@ -5,6 +5,10 @@ using UnityEngine.Tilemaps;
 
 public class BoardManager : MonoBehaviour
 {
+    public static event Action<Vector3Int, ShipController> OnPlayerShipSunk;
+    public static event Action OnAllPlayerShipsDestroyed;
+    private int numberOfShipsSunk = 0;
+    private Dictionary<Vector3Int, ShipController> cellToShip = new();
     public static int placedShipCount = 0;
     public static event Action OnPlacedAllShips;
 
@@ -15,11 +19,32 @@ public class BoardManager : MonoBehaviour
     private List<GameObject> placedShips = new();
     private List<GameObject> highlightPool = new();
 
-    // OLD
     private HashSet<Vector3Int> occupiedCells = new HashSet<Vector3Int>();
 
-    // NEW
     private List<ShipData> ships = new();
+    private int totalShipsInGame = 5;
+
+    private void Awake()
+    {
+        ResetBoard();
+    }
+
+    public void ResetBoard()
+    {
+        ships.Clear();
+        occupiedCells.Clear();
+        cellToShip.Clear();
+        placedShipCount = 0;
+        numberOfShipsSunk = 0;
+
+        foreach (var ship in placedShips)
+            if (ship) Destroy(ship);
+        placedShips.Clear();
+
+        foreach (var h in highlightPool)
+            if (h) Destroy(h);
+        highlightPool.Clear();
+    }
 
     private void TriggerOnPlacedAllShips()
     {
@@ -65,27 +90,34 @@ public class BoardManager : MonoBehaviour
         return true;
     }
 
-    // MODIFIED
-    public void OccupyCells(List<Vector3Int> cells)
+    public void OccupyCells(List<Vector3Int> cells, ShipController shipController)
     {
+        if (ships.Count >= totalShipsInGame) return;
+
         foreach (var cell in cells)
+        {
             occupiedCells.Add(cell);
+            cellToShip[cell] = shipController;
+        }
 
         ShipData ship = new ShipData();
         ship.cells.AddRange(cells);
+        ship.Initialize();
+        ship.hitCount = 0;
+        ship.hitsInThisTurn = 0;
 
         ships.Add(ship);
     }
 
     public void RegisterShipsOnBoard(ShipController ship)
     {
-        if (placedShipCount <= 2)
+        if (placedShipCount < totalShipsInGame)
         {
             placedShipCount++;
             placedShips.Add(ship.gameObject);
         }
 
-        if (placedShipCount >= 2)
+        if (placedShipCount >= totalShipsInGame)
             TriggerOnPlacedAllShips();
     }
 
@@ -93,6 +125,7 @@ public class BoardManager : MonoBehaviour
     {
         foreach (GameObject ship in placedShips)
         {
+            if (ship == null) continue;
             ship.GetComponent<ShipController>().enabled = false;
             ship.GetComponent<BoxCollider2D>().enabled = true;
 
@@ -106,8 +139,17 @@ public class BoardManager : MonoBehaviour
 
     public void FreeCells(List<Vector3Int> cells)
     {
+        if (cells == null || cells.Count == 0) return;
+
+        ShipData shipToRemove = GetShipAt(cells[0]);
+        if (shipToRemove != null)
+            ships.Remove(shipToRemove);
+
         foreach (var cell in cells)
+        {
             occupiedCells.Remove(cell);
+            cellToShip.Remove(cell);
+        }
     }
 
     public Vector3 GetWorldFromCell(Vector3Int cell)
@@ -167,6 +209,7 @@ public class BoardManager : MonoBehaviour
         if (ship == null)
             return;
 
+        ship.cells.Remove(cell);
         ship.RegisterHit();
         occupiedCells.Remove(cell);
 
@@ -174,14 +217,30 @@ public class BoardManager : MonoBehaviour
         {
             Debug.Log("Ship sunk!");
 
+            if (numberOfShipsSunk >= totalShipsInGame)
+            {
+                OnAllPlayerShipsDestroyed?.Invoke();
+                GameManager.Instance.SetGameState(GameState.Lose);
+                return;
+            }
+            if (numberOfShipsSunk <= totalShipsInGame)
+            {
+                numberOfShipsSunk++;
+            }
+            if (cellToShip.ContainsKey(cell))
+            {
+                ShipController currentShip = cellToShip[cell];
+                OnPlayerShipSunk?.Invoke(cell, currentShip);
+            }
+            
             if (ship.WasShipDestroyedInATurn())
             {
                 Debug.Log("Explosive Shot unlocked for bot!");
-                // powerup here
                 ShootController.isPowerShotActivatedForBot = true;
             }
         }
     }
+
     public void ResetTurnHits()
     {
         foreach (var ship in ships)

@@ -8,8 +8,16 @@ public class ShootController : MonoBehaviour
     public static bool isPowerShotActivatedForPlayer = false;
     public static bool isPowerShotActivatedForBot = false;
 
+    public static void ResetStaticData()
+    {
+        isPowerShotActivatedForPlayer = false;
+        isPowerShotActivatedForBot = false;
+    }
+
     [Header("VFX")]
     [SerializeField] private ParticleSystem hitVFX;
+    [SerializeField] private AudioClip hitClip;
+    [SerializeField] private AudioClip missClip;
     [SerializeField] private ParticleSystem playerMissVFX;
     [SerializeField] private ParticleSystem botMissVFX;
 
@@ -25,11 +33,12 @@ public class ShootController : MonoBehaviour
 
     [Header("Tiles")]
     [SerializeField] private TileBase hitTile;
-    [SerializeField] private TileBase missTile;
+    [SerializeField] private TileBase playerMissTile;
+    [SerializeField] private TileBase botMissTile;
 
     Vector3Int? lastHitCell = null;
 
-    public void PlayerShoot(Vector3 worldPos)           //This method handles player shoot logic based on PlayerShootController
+    public void PlayerShoot(Vector3 worldPos)
     {
         if (GameManager.Instance.CurrentState != GameState.PlayerShootTurn)
             return;
@@ -39,20 +48,23 @@ public class ShootController : MonoBehaviour
 
         Vector3Int cell = enemyTilemap.WorldToCell(worldPos);
 
-        if (enemyTilemap.GetTile(cell) == hitTile || enemyTilemap.GetTile(cell) == missTile)
+        if (!enemyTilemap.HasTile(cell)) return;             // NEW
+
+        if (enemyTilemap.GetTile(cell) == hitTile || enemyTilemap.GetTile(cell) == playerMissTile)
             return;
 
-        if (isPowerShotActivatedForPlayer)                                                   //Handling powered up shots separately
+        if (isPowerShotActivatedForPlayer)
         {
             hitVFX.transform.position = enemyTilemap.GetCellCenterWorld(cell);
             StartCoroutine(VFXCoroutine(hitVFX));
-
+            AudioManager.Instance.PlaySpecialAbilityShotSFX();
             ExplodeAt(
                 cell,
                 enemyTilemap,
                 botBoardBounds,
                 botBoardManager.GetShipAt,
-                botBoardManager.RegisterHit
+                botBoardManager.RegisterHit,
+                playerMissTile
             );
 
             isPowerShotActivatedForPlayer = false;
@@ -63,51 +75,58 @@ public class ShootController : MonoBehaviour
 
         ShipData ship = botBoardManager.GetShipAt(cell);
 
-        if (ship != null)                                                                   //If ship foound, Registers ship damage via BotBoardManager
+        if (ship != null)
         {
             hitVFX.transform.position = enemyTilemap.GetCellCenterWorld(cell);
             StartCoroutine(VFXCoroutine(hitVFX));
+            AudioManager.Instance.PlayShootSFX(hitClip);
             enemyTilemap.SetTile(cell, hitTile);
             botBoardManager.RegisterHit(cell);
-
-            GameManager.Instance.SetGameState(GameState.PlayerShootTurn);                   //Changes game state again to player to let the player shoot until the player misses
+            GameManager.Instance.SetGameState(GameState.PlayerShootTurn);
             return;
         }
 
-        botBoardManager.ResetTurnHits();                                                    //Resets combo
+        botBoardManager.ResetTurnHits();
         playerMissVFX.transform.position = enemyTilemap.GetCellCenterWorld(cell);
         StartCoroutine(VFXCoroutine(playerMissVFX));
-        enemyTilemap.SetTile(cell, missTile);
-
+        AudioManager.Instance.PlayShootSFX(missClip);
+        enemyTilemap.SetTile(cell, playerMissTile);
         GameManager.Instance.SetGameState(GameState.BotShootTurn);
         StartCoroutine(BotShootRoutine());
     }
 
 
-    void BotShoot()                                                                 //No inputs, so this method alone handles bot shooting logic. Holds same logic as PlayerShoot()
+    void BotShoot()
     {
         if (GameManager.Instance.CurrentState != GameState.BotShootTurn)
             return;
 
-        Vector3Int cell = lastHitCell.HasValue ? GetRandomAdjacent(lastHitCell.Value) : GetRandomCell();     //If hit, tries to find the possible ship placement. Else, picks up a random tile   
+        Vector3Int cell = Vector3Int.zero;
+        int safety = 0;                                     // NEW
 
-        if (playerTilemap.GetTile(cell) == hitTile || playerTilemap.GetTile(cell) == missTile)         //Prevents shooting on tiles,which were already destroyed
+        do                                                  // NEW loop instead of recursion
         {
-            BotShoot();
-            return;
+            cell = lastHitCell.HasValue ? GetRandomAdjacent(lastHitCell.Value) : GetRandomCell();
+            safety++;
         }
+        while ((!playerTilemap.HasTile(cell) ||
+               playerTilemap.GetTile(cell) == hitTile ||
+               playerTilemap.GetTile(cell) == botMissTile) && safety < 50);
+
+        if (safety >= 50) return;                           // NEW
 
         if (isPowerShotActivatedForBot)
         {
             hitVFX.transform.position = playerTilemap.GetCellCenterWorld(cell);
             StartCoroutine(VFXCoroutine(hitVFX));
-
+            AudioManager.Instance.PlaySpecialAbilityShotSFX();
             ExplodeAt(
                 cell,
                 playerTilemap,
                 playerBoardBounds,
                 playerBoardManager.GetShipAt,
-                playerBoardManager.RegisterHit
+                playerBoardManager.RegisterHit,
+                botMissTile
             );
 
             isPowerShotActivatedForBot = false;
@@ -122,9 +141,9 @@ public class ShootController : MonoBehaviour
         {
             hitVFX.transform.position = playerTilemap.GetCellCenterWorld(cell);
             StartCoroutine(VFXCoroutine(hitVFX));
+            AudioManager.Instance.PlayShootSFX(hitClip);
             playerTilemap.SetTile(cell, hitTile);
             playerBoardManager.RegisterHit(cell);
-
             lastHitCell = cell;
             StartCoroutine(BotShootRoutine());
             return;
@@ -133,19 +152,21 @@ public class ShootController : MonoBehaviour
         playerBoardManager.ResetTurnHits();
         botMissVFX.transform.position = playerTilemap.GetCellCenterWorld(cell);
         StartCoroutine(VFXCoroutine(botMissVFX));
-        playerTilemap.SetTile(cell, missTile);
-        lastHitCell = null;
+        AudioManager.Instance.PlayShootSFX(missClip);
+        playerTilemap.SetTile(cell, botMissTile);
+        lastHitCell = null;                               
 
         StartCoroutine(PlayerCoroutine());
     }
 
 
-    void ExplodeAt(                                             //This method handles powered up shot. Calculates the center and affects the provided radius of tiles
+    void ExplodeAt(
         Vector3Int center,
         Tilemap tilemap,
         BoxCollider2D bounds,
         System.Func<Vector3Int, ShipData> getShip,
-        System.Action<Vector3Int> registerHit)
+        System.Action<Vector3Int> registerHit,
+        TileBase missTile)
     {
         Vector3Int[] area =
         {
@@ -156,59 +177,58 @@ public class ShootController : MonoBehaviour
             center + Vector3Int.right
         };
 
-        foreach (var c in area)
+        foreach (var cell in area)
         {
-            Vector3 world = tilemap.GetCellCenterWorld(c);
+            Vector3 world = tilemap.GetCellCenterWorld(cell);
 
             if (!bounds.bounds.Contains(world))
                 continue;
 
-            if (tilemap.GetTile(c) == hitTile || tilemap.GetTile(c) == missTile)
+            if (!tilemap.HasTile(cell)) continue;           // NEW
+
+            if (tilemap.GetTile(cell) == hitTile || tilemap.GetTile(cell) == playerMissTile || tilemap.GetTile(cell) == botMissTile)
                 continue;
 
-            ShipData ship = getShip(c);
+            ShipData ship = getShip(cell);
 
             if (ship != null)
             {
-                tilemap.SetTile(c, hitTile);
-                registerHit(c);
+                tilemap.SetTile(cell, hitTile);
+                registerHit(cell);
             }
             else
             {
-                tilemap.SetTile(c, missTile);
+                tilemap.SetTile(cell, missTile);
             }
         }
     }
 
-
-    IEnumerator VFXCoroutine(ParticleSystem currentVFX)                     //Coroutine to allow the VFX to play entirely before being SetActive(false)
+    IEnumerator VFXCoroutine(ParticleSystem currentVFX)
     {
         currentVFX.gameObject.SetActive(true);
         yield return new WaitForSeconds(currentVFX.main.duration);
         currentVFX.gameObject.SetActive(false);
     }
 
-    IEnumerator BotShootRoutine()                                           //Coroutine to imitate bot thinking. Delays bot shot by provided seconds
+    IEnumerator BotShootRoutine()
     {
         yield return new WaitForSeconds(1.5f);
         BotShoot();
     }
 
-    IEnumerator PlayerCoroutine()                                           //Coroutine to have a cooldown for player shots. Prevents glitchy turns
+    IEnumerator PlayerCoroutine()
     {
         yield return new WaitForSeconds(0.5f);
         GameManager.Instance.SetGameState(GameState.PlayerShootTurn);
     }
 
-    // Helper Methods
-
-    Vector3Int GetRandomCell()                                          //Get's  random cell position for the bot to shoot at.
+    Vector3Int GetRandomCell()
     {
         Vector3 p = GetRandomPointInBounds(playerBoardBounds.bounds);
         return playerTilemap.WorldToCell(p);
     }
 
-    Vector3 GetRandomPointInBounds(Bounds bounds)                       //Get random points from the provided bounds
+    Vector3 GetRandomPointInBounds(Bounds bounds)
     {
         return new Vector3(
             Random.Range(bounds.min.x, bounds.max.x),
@@ -217,16 +237,43 @@ public class ShootController : MonoBehaviour
         );
     }
 
-    Vector3Int GetRandomAdjacent(Vector3Int origin)                   //If the bot hits the ship, this method will be called. This method narrows down the random tile picking logic by checking out only 4 directions
+    Vector3Int GetRandomAdjacent(Vector3Int origin)
     {
+        List<Vector3Int> candidates = new();
+
         Vector3Int[] dirs =
         {
-            Vector3Int.up,
-            Vector3Int.down,
-            Vector3Int.left,
-            Vector3Int.right
-        };
+        Vector3Int.up,
+        Vector3Int.down,
+        Vector3Int.left,
+        Vector3Int.right
+    };
 
-        return origin + dirs[Random.Range(0, dirs.Length)];
+        foreach (var dir in dirs)
+        {
+            Vector3Int c = origin + dir;
+
+            Vector3 worldPos = playerTilemap.GetCellCenterWorld(c);
+
+            if (!playerBoardBounds.bounds.Contains(worldPos))
+                continue;
+
+            if (!playerTilemap.HasTile(c))
+                continue;
+
+            TileBase t = playerTilemap.GetTile(c);
+
+            if (t == hitTile || t == botMissTile)
+                continue;
+
+            candidates.Add(c);
+        }
+
+        // If no valid adjacent, fallback to random
+        if (candidates.Count == 0)
+            return GetRandomCell();
+
+        return candidates[Random.Range(0, candidates.Count)];
     }
+
 }

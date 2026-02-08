@@ -28,9 +28,6 @@ public class GameManager : MonoBehaviour
         SetGameState(GameState.Start);
     }
 
-    // =====================
-    // STATE MACHINE ENTRY
-    // =====================
 
     public void SetGameState(GameState newState)
     {
@@ -51,9 +48,14 @@ public class GameManager : MonoBehaviour
         switch (state)
         {
             case GameState.Start:
+                SceneManager.LoadScene(0);
+                UIManager.Instance.SetWindowState(WindowStates.Main);
+                ShootController.ResetStaticData();
                 break;
 
             case GameState.PlayerPlacementTurn:
+                AudioManager.Instance.StopBGSFX();
+                StartCoroutine(PlayerPlacementUIWaitRoutine());
                 break;
 
             case GameState.BotPlacementTurn:
@@ -67,15 +69,17 @@ public class GameManager : MonoBehaviour
                 break;
 
             case GameState.Win:
-                //UIManager.Instance.SetWindowState(WindowStates.WinUI);
+                UIManager.Instance.SetWindowState(WindowStates.WinUI);
                 break;
 
             case GameState.Lose:
-                //UIManager.Instance.SetWindowState(WindowStates.LoseUI);
+                UIManager.Instance.SetWindowState(WindowStates.GameOverUI);
                 break;
 
             case GameState.Restart:
-                //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                SceneManager.LoadScene(0);      //Start from Main scene but load Difficulty Selection
+                UIManager.Instance.SetWindowState(WindowStates.DifficultySelection);
+                ShootController.ResetStaticData();
                 break;
         }
     }
@@ -98,12 +102,17 @@ public class GameManager : MonoBehaviour
         SetGameState(GameState.PlayerPlacementTurn);
     }
 
-
+    private IEnumerator PlayerPlacementUIWaitRoutine()
+    {
+        UIManager.Instance.SetWindowState(WindowStates.PlayerShipPlacementUI);
+        yield return new WaitForSeconds(2.5f);
+        UIManager.Instance.SetWindowState(WindowStates.GameUI);
+    }
     private IEnumerator BotThinkingRoutine()
     {
         UIManager.Instance.SetWindowState(WindowStates.BotShipPlacementUI);
 
-        yield return new WaitForSeconds(5f);
+        yield return new WaitForSeconds(2.5f);
 
         UIManager.Instance.SetWindowState(WindowStates.GameUI);
 

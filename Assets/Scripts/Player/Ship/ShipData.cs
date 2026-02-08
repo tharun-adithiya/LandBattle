@@ -8,9 +8,17 @@ public class ShipData                               //Generalized class to handl
     public int hitCount;
     public int hitsInThisTurn;
 
+    public int originalSize;                     
+
     public bool Contains(Vector3Int cell)
     {
         return cells.Contains(cell);
+    }
+
+    // NEW — called after placement
+    public void Initialize()
+    {
+        originalSize = cells.Count;
     }
 
     public void RegisterHit()
@@ -21,8 +29,9 @@ public class ShipData                               //Generalized class to handl
 
     public bool IsSunk()
     {
-        return hitCount >= cells.Count;
+        return hitCount >= originalSize;         
     }
+
     public void ResetTurnHits()
     {
         Debug.Log("reseting combo");
@@ -31,6 +40,6 @@ public class ShipData                               //Generalized class to handl
 
     public bool WasShipDestroyedInATurn()
     {
-        return hitsInThisTurn>=cells.Count;
+        return hitsInThisTurn >= originalSize;  
     }
 }

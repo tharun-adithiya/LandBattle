@@ -1,28 +1,38 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
 public class BotBoardManager : MonoBehaviour
 {
-    [SerializeField] private Tilemap botTilemap;                    
+    public static event Action<Vector3Int,BotShipController> OnBotShipSunk;
+    public static event Action OnAllBotShipsDestroyed;
+    private int numberOfShipsDestroyed=0;
+    [SerializeField] private Tilemap botTilemap;
     [SerializeField] private BoxCollider2D boardBounds;
-    [SerializeField] private GameObject highlightTilePrefab;
-                                        
+    private HashSet<Vector3Int> occupiedCells = new();
 
-    private HashSet<Vector3Int> occupiedCells = new();                      //Tracks cells occupied by the ships int the board
+    private List<ShipData> ships = new();
+    private Dictionary<Vector3Int, BotShipController> cellToShip = new();
 
-    private List<ShipData> ships = new();                                   //Tracks the ships marked in the cells
+    public void ResetBoard()
+    {
+        occupiedCells.Clear();
+        ships.Clear();
+        cellToShip.Clear();
+        numberOfShipsDestroyed = 0;
+    }
 
-    public Vector3Int GetStartCell(Vector3 worldPosition, int shipSize, bool isHorizontal)          //Decides the start cell based on the size of the ship. This will provide an offset to handle faulty placements
+    public Vector3Int GetStartCell(Vector3 worldPosition, int shipSize, bool isHorizontal)
     {
         Vector3 offsetVector = isHorizontal ?
             new Vector3((shipSize - 1) * 0.5f, 0, 0) :
             new Vector3(0, (shipSize - 1) * 0.5f, 0);
 
-        return botTilemap.WorldToCell(worldPosition - offsetVector);                                        
+        return botTilemap.WorldToCell(worldPosition - offsetVector);
     }
 
-    public bool CanPlaceShip(Vector3Int startCell, int shipSize, bool isHorizontal, out List<Vector3Int> cells)         //Validates ship placement
+    public bool CanPlaceShip(Vector3Int startCell, int shipSize, bool isHorizontal, out List<Vector3Int> cells)
     {
         cells = new();
 
@@ -51,31 +61,56 @@ public class BotBoardManager : MonoBehaviour
         return true;
     }
 
-    public void OccupyCells(List<Vector3Int> cells)                         //Registers cells that were occupied by the ships placed on the board.
+    public bool TryPlacngShip(Vector3Int preferredCell, int shipSize, bool isHorizontal, out List<Vector3Int> cells)
+    {
+        if (CanPlaceShip(preferredCell, shipSize, isHorizontal, out cells))
+            return true;
+
+        Debug.LogError($"Invalid bot placement at {preferredCell} size:{shipSize} horizontal:{isHorizontal}");
+
+        cells = new();
+        return false;
+    }
+
+    public void OccupyCells(List<Vector3Int> cells, BotShipController botShipController)
     {
         foreach (var cell in cells)
+        {
             occupiedCells.Add(cell);
+            cellToShip[cell] = botShipController;
+        }
 
-        ShipData ship = new ShipData();                                   
+        ShipData ship = new ShipData();
         ship.cells.AddRange(cells);
-        ships.Add(ship);                                                    //Registers ships placed on the board.
+        ship.Initialize();
+        ships.Add(ship);
+
+        Debug.Log($"Bot ship registered with {cells.Count} cells. Total ships: {ships.Count}");
     }
 
-    public void FreeCells(List<Vector3Int> cells)                          //Cleans up the board
+    public void FreeCells(List<Vector3Int> cells)
     {
+        if (cells == null || cells.Count == 0) return;
+
+        ShipData shipToRemove = GetShipAt(cells[0]);
+        if (shipToRemove != null)
+            ships.Remove(shipToRemove);
+
         foreach (var cell in cells)
+        {
             occupiedCells.Remove(cell);
+            cellToShip.Remove(cell);
+        }
     }
 
-    //Helper Methods
-    public Vector3 GetWorldFromCell(Vector3Int cell)                        //Returns CellCenterWorld from BotTilemap for the provided the cell
+    public Vector3 GetWorldFromCell(Vector3Int cell)
     {
         return botTilemap.GetCellCenterWorld(cell);
     }
 
-    public BoxCollider2D GetBounds() => boardBounds;                        //Returns bot's tilemap bounds
+    public BoxCollider2D GetBounds() => boardBounds;
 
-    public ShipData GetShipAt(Vector3Int cell)                              //Returns ship at the given position if exists.
+    public ShipData GetShipAt(Vector3Int cell)
     {
         foreach (var ship in ships)
         {
@@ -86,20 +121,41 @@ public class BotBoardManager : MonoBehaviour
         return null;
     }
 
-    public void RegisterHit(Vector3Int cell)                             //Registers hit on board if there is a ship in the tile that got shot.
+    public void RegisterHit(Vector3Int cell)
     {
         ShipData ship = GetShipAt(cell);
 
         if (ship == null)
             return;
 
+        ship.cells.Remove(cell);
         ship.RegisterHit();
         occupiedCells.Remove(cell);
 
         if (ship.IsSunk())
         {
-            Debug.Log("Bot ship sunk!");
+            
 
+            if (numberOfShipsDestroyed <= 5)
+            {
+                
+                numberOfShipsDestroyed++;
+                Debug.Log("Number of ships sunk:" + numberOfShipsDestroyed);
+            }
+            if (numberOfShipsDestroyed >= 5)
+            {
+                Debug.Log("Won");
+                OnAllBotShipsDestroyed?.Invoke();
+                GameManager.Instance.SetGameState(GameState.Win);
+                return;
+            }
+            Debug.Log("Bot ship sunk!");
+            if (cellToShip.ContainsKey(cell))
+            {
+                BotShipController currentShip = cellToShip[cell];
+                OnBotShipSunk?.Invoke(cell, currentShip);
+            }
+            
             if (ship.WasShipDestroyedInATurn())
             {
                 Debug.Log("Explosive Shot unlocked!");
@@ -107,10 +163,10 @@ public class BotBoardManager : MonoBehaviour
             }
         }
     }
-    public void ResetTurnHits()                                      // Resets combo counter for every ships.
+
+    public void ResetTurnHits()
     {
         foreach (var ship in ships)
             ship.ResetTurnHits();
     }
-
 }

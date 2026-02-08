@@ -9,6 +9,6 @@ public enum WindowStates
     GameUI,
     PlayerShootUI,
     BotShootUI,
-    GameOver,
-    Win
+    GameOverUI,
+    WinUI
 }

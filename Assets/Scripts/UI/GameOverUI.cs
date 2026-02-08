@@ -1,16 +1,15 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameOverUI : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public void MoveToMainMenu()
     {
-        
+        GameManager.Instance.SetGameState(GameState.Start);
     }
 
-    // Update is called once per frame
-    void Update()
+    public void RestartFromDifficultySelection()
     {
-        
+        GameManager.Instance.SetGameState(GameState.Restart);
     }
 }
